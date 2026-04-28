@@ -1,0 +1,1277 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#050807">
+  <title>Reality Glitch AR</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #050807;
+      --panel: rgba(4, 12, 10, 0.78);
+      --panel-strong: rgba(4, 12, 10, 0.92);
+      --text: #f5fff9;
+      --muted: #b7c9c0;
+      --green: #35ff75;
+      --green-soft: rgba(53, 255, 117, 0.28);
+      --blue: #3ab7ff;
+      --blue-dark: #053655;
+      --red: #ff4f45;
+      --red-dark: #4a0c09;
+      --amber: #ffbd57;
+      --focus: #fff36f;
+      --shadow: 0 18px 70px rgba(0, 0, 0, 0.45);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      min-height: 100%;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    body {
+      min-height: 100svh;
+      touch-action: manipulation;
+    }
+
+    button {
+      font: inherit;
+      color: inherit;
+      border: 0;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button:focus-visible,
+    [tabindex]:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 4px;
+    }
+
+    .app {
+      position: fixed;
+      inset: 0;
+      min-height: 100svh;
+      background:
+        radial-gradient(circle at 50% 30%, rgba(53, 255, 117, 0.10), transparent 36rem),
+        linear-gradient(180deg, #07100d, #010302);
+      isolation: isolate;
+    }
+
+    .stage {
+      position: absolute;
+      inset: 0;
+      overflow: hidden;
+      background: #020403;
+    }
+
+    video,
+    canvas {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    video {
+      object-fit: cover;
+      transform: scaleX(1);
+      background: #020403;
+    }
+
+    body.selfie video {
+      transform: scaleX(-1);
+    }
+
+    canvas {
+      pointer-events: auto;
+    }
+
+    .intro {
+      position: absolute;
+      inset: 0;
+      z-index: 5;
+      display: grid;
+      place-items: center;
+      padding: max(1.25rem, env(safe-area-inset-top)) 1rem max(1.25rem, env(safe-area-inset-bottom));
+      background:
+        linear-gradient(rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.70)),
+        radial-gradient(circle at 70% 18%, rgba(58, 183, 255, 0.18), transparent 18rem),
+        radial-gradient(circle at 20% 72%, rgba(255, 79, 69, 0.14), transparent 17rem);
+    }
+
+    .intro[hidden] { display: none; }
+
+    .intro-inner {
+      width: min(100%, 42rem);
+      padding: clamp(1rem, 4vw, 2rem);
+      background: var(--panel);
+      border: 1px solid rgba(245, 255, 249, 0.18);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .kicker {
+      margin: 0 0 0.65rem;
+      color: var(--green);
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2.3rem, 10vw, 5rem);
+      line-height: 0.9;
+      letter-spacing: 0;
+      text-wrap: balance;
+    }
+
+    .intro p {
+      max-width: 34rem;
+      margin: 1rem 0 0;
+      color: var(--muted);
+      font-size: clamp(1rem, 3.8vw, 1.12rem);
+      line-height: 1.55;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.35rem;
+    }
+
+    .btn {
+      min-height: 2.9rem;
+      padding: 0.72rem 1rem;
+      border-radius: 999px;
+      background: rgba(245, 255, 249, 0.12);
+      border: 1px solid rgba(245, 255, 249, 0.20);
+      color: var(--text);
+      font-weight: 800;
+      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.22);
+      transition: transform 180ms ease, background 180ms ease, border-color 180ms ease;
+    }
+
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+    .btn.primary {
+      background: linear-gradient(180deg, #42ff82, #089940);
+      color: #001a0b;
+      border-color: rgba(199, 255, 216, 0.8);
+    }
+    .btn.blue {
+      background: linear-gradient(180deg, #7fd5ff, #107ab6);
+      color: #001421;
+      border-color: rgba(191, 235, 255, 0.9);
+    }
+    .btn.red {
+      background: linear-gradient(180deg, #ff8b80, #b71b13);
+      color: #fff8f7;
+      border-color: rgba(255, 196, 190, 0.9);
+    }
+
+    .hud {
+      position: absolute;
+      inset: 0;
+      z-index: 4;
+      pointer-events: none;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding:
+        max(0.8rem, env(safe-area-inset-top))
+        max(0.8rem, env(safe-area-inset-right))
+        max(0.8rem, env(safe-area-inset-bottom))
+        max(0.8rem, env(safe-area-inset-left));
+    }
+
+    .topbar,
+    .bottombar {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      pointer-events: none;
+    }
+
+    .topbar { justify-content: space-between; }
+    .bottombar {
+      align-self: end;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .hud button,
+    .pill-choice button {
+      pointer-events: auto;
+    }
+
+    .status {
+      max-width: min(35rem, 100%);
+      padding: 0.65rem 0.8rem;
+      border-radius: 8px;
+      background: var(--panel-strong);
+      border: 1px solid rgba(245, 255, 249, 0.16);
+      color: var(--text);
+      font-size: 0.92rem;
+      line-height: 1.35;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+    }
+
+    .pill-choice {
+      align-self: center;
+      justify-self: center;
+      display: none;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.8rem;
+      width: min(92vw, 28rem);
+      pointer-events: auto;
+    }
+
+    .pill-choice.visible { display: grid; }
+
+    .pill-choice .btn {
+      min-height: 4.2rem;
+      font-size: 1.07rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    .sunglasses-fallback {
+      position: absolute;
+      left: 50%;
+      top: 42%;
+      z-index: 3;
+      width: 46vw;
+      max-width: 19rem;
+      min-width: 9rem;
+      aspect-ratio: 3.2 / 1;
+      transform: translate(-50%, -50%);
+      display: none;
+      touch-action: none;
+      cursor: grab;
+      pointer-events: auto;
+      filter: drop-shadow(0 8px 14px rgba(0, 0, 0, 0.45));
+    }
+
+    .sunglasses-fallback.visible { display: block; }
+
+    .sunglasses-fallback:active { cursor: grabbing; }
+
+    .sunglasses-fallback svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    @media (min-width: 760px) {
+      .hud {
+        padding: 1.25rem;
+      }
+
+      .status {
+        font-size: 1rem;
+      }
+
+      .intro-inner {
+        margin-bottom: 6vh;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="app" aria-label="Reality Glitch AR experience">
+    <section id="intro" class="intro" aria-labelledby="title">
+      <div class="intro-inner">
+        <p id="kicker" class="kicker"></p>
+        <h1 id="title"></h1>
+        <p id="introCopy"></p>
+        <div class="actions" aria-label="Start options">
+          <button id="startCamera" class="btn primary" type="button"></button>
+          <button id="startDemo" class="btn" type="button"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="stage" aria-label="Camera and augmented reality view" aria-describedby="instructions" tabindex="0">
+      <video id="camera" playsinline muted autoplay aria-label="Live camera feed"></video>
+      <canvas id="fx" aria-hidden="true"></canvas>
+      <div id="glassesDrag" class="sunglasses-fallback" role="img" aria-label="Draggable sunglasses overlay" tabindex="0">
+        <svg viewBox="0 0 320 100" aria-hidden="true" focusable="false">
+          <path d="M22 36 C52 22 98 22 124 39 C137 48 137 81 122 88 C92 101 38 96 20 74 C8 60 9 43 22 36 Z" fill="#080808" stroke="#f5fff9" stroke-width="5"/>
+          <path d="M196 39 C222 22 268 22 298 36 C311 43 312 60 300 74 C282 96 228 101 198 88 C183 81 183 48 196 39 Z" fill="#080808" stroke="#f5fff9" stroke-width="5"/>
+          <path d="M124 49 C143 38 177 38 196 49" fill="none" stroke="#f5fff9" stroke-width="8" stroke-linecap="round"/>
+          <path d="M22 36 L6 25 M298 36 L314 25" stroke="#f5fff9" stroke-width="7" stroke-linecap="round"/>
+        </svg>
+      </div>
+    </section>
+
+    <section class="hud" aria-label="Experience controls">
+      <div class="topbar">
+        <div id="status" class="status" aria-live="polite">
+        </div>
+        <button id="reset" class="btn hidden" type="button"></button>
+      </div>
+
+      <div id="pillChoice" class="pill-choice" aria-label="Choose a pill">
+        <button id="bluePill" class="btn blue" type="button"></button>
+        <button id="redPill" class="btn red" type="button"></button>
+      </div>
+
+      <div class="bottombar">
+        <button id="flipCamera" class="btn hidden" type="button"></button>
+        <button id="demoToggle" class="btn hidden" type="button"></button>
+      </div>
+    </section>
+
+    <p id="instructions" class="sr-only"></p>
+  </main>
+
+  <script type="module">
+    const CONFIG = {
+      appName: "Reality Glitch AR",
+      cdn: {
+        tasksVision: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/vision_bundle.mjs",
+        wasmRoot: "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22/wasm",
+        handModel: "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
+        faceModel: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+      },
+      text: {
+        title: "Reality Glitch AR",
+        kicker: "Local camera AR, no uploads",
+        introCopy: "Point your camera at a room, tap or pinch the glowing cracks, then choose a world. If camera or hand tracking is unavailable, demo mode keeps the full experience playable.",
+        instructions: "Keyboard controls: use Tab to focus buttons. In the camera room, press Enter or Space while the stage is focused to reveal a crack.",
+        startCamera: "Start Camera",
+        demoMode: "Disable Camera / Demo Mode",
+        reset: "Reset",
+        bluePill: "Blue Pill",
+        redPill: "Red Pill",
+        flipCamera: "Flip Camera",
+        intro: "Ready. Start the camera or use demo mode.",
+        cameraStarting: "Requesting camera access. The experience stays local in this browser.",
+        cameraRoom: "Reality is visible. Tap a crack, move closer, or pinch to break through.",
+        crackReveal: "Crack opened. Binary code is leaking through.",
+        matrixRoom: "Matrix Room active. Choose Blue Pill or Red Pill.",
+        blueWorld: "Blue Pill selected. Bright beach reality is active. Flip camera for selfie mode.",
+        redWorld: "Red Pill selected. Steampunk reality is active. Flip camera for selfie mode.",
+        selfieBlue: "Selfie beach mode. Sunglasses are tracked when possible, otherwise drag the overlay.",
+        selfieRed: "Selfie steampunk mode. Sunglasses are tracked when possible, otherwise drag the overlay.",
+        cameraUnavailable: "Camera unavailable. Demo mode is running.",
+        handFallback: "Hand tracking unavailable. Tap or use keyboard controls.",
+        faceFallback: "Face tracking unavailable. Drag or resize the sunglasses overlay.",
+        frontFail: "Front camera could not be opened. Continuing with the current camera."
+      },
+      camera: {
+        rear: { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false },
+        front: { video: { facingMode: { ideal: "user" }, width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false }
+      },
+      performance: {
+        maxCanvasPixelsMobile: 920000,
+        maxCanvasPixelsDesktop: 1700000,
+        handFrameIntervalMs: 120,
+        faceFrameIntervalMs: 120
+      },
+      visuals: {
+        crackCount: 5,
+        crackHitRadius: 86,
+        rainColumnsPhone: 42,
+        rainColumnsDesktop: 88,
+        binaryGlyphs: "01",
+        transitionFrames: 44,
+        reducedMotionFrameSkip: 3
+      }
+    };
+
+    const STATES = Object.freeze({
+      INTRO: "INTRO",
+      CAMERA_ROOM: "CAMERA_ROOM",
+      CRACK_REVEAL: "CRACK_REVEAL",
+      MATRIX_ROOM: "MATRIX_ROOM",
+      BLUE_WORLD: "BLUE_WORLD",
+      RED_WORLD: "RED_WORLD",
+      SELFIE_BLUE: "SELFIE_BLUE",
+      SELFIE_RED: "SELFIE_RED"
+    });
+
+    const dom = {
+      body: document.body,
+      intro: document.getElementById("intro"),
+      title: document.getElementById("title"),
+      kicker: document.getElementById("kicker"),
+      introCopy: document.getElementById("introCopy"),
+      instructions: document.getElementById("instructions"),
+      video: document.getElementById("camera"),
+      canvas: document.getElementById("fx"),
+      status: document.getElementById("status"),
+      startCamera: document.getElementById("startCamera"),
+      startDemo: document.getElementById("startDemo"),
+      reset: document.getElementById("reset"),
+      flipCamera: document.getElementById("flipCamera"),
+      demoToggle: document.getElementById("demoToggle"),
+      pillChoice: document.getElementById("pillChoice"),
+      bluePill: document.getElementById("bluePill"),
+      redPill: document.getElementById("redPill"),
+      glassesDrag: document.getElementById("glassesDrag")
+    };
+
+    const ctx = dom.canvas.getContext("2d", { alpha: true });
+    const media = {
+      stream: null,
+      facing: "environment",
+      demo: false,
+      handReady: false,
+      faceReady: false,
+      handLandmarker: null,
+      faceLandmarker: null,
+      lastHandCheck: 0,
+      lastFaceCheck: 0,
+      lastPinch: 0,
+      lastFaceBox: null
+    };
+
+    const app = {
+      state: STATES.INTRO,
+      selectedWorld: null,
+      running: true,
+      reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+      frame: 0,
+      width: 0,
+      height: 0,
+      dpr: 1,
+      cracks: [],
+      rain: [],
+      particles: [],
+      transition: 0,
+      lastTime: performance.now(),
+      pointerDown: null
+    };
+
+    function setStatus(message) {
+      dom.status.textContent = message;
+    }
+
+    function applyConfigText() {
+      document.title = CONFIG.text.title;
+      dom.title.textContent = CONFIG.text.title;
+      dom.kicker.textContent = CONFIG.text.kicker;
+      dom.introCopy.textContent = CONFIG.text.introCopy;
+      dom.instructions.textContent = CONFIG.text.instructions;
+      dom.startCamera.textContent = CONFIG.text.startCamera;
+      dom.startDemo.textContent = CONFIG.text.demoMode;
+      dom.demoToggle.textContent = CONFIG.text.demoMode;
+      dom.reset.textContent = CONFIG.text.reset;
+      dom.reset.setAttribute("aria-label", CONFIG.text.reset);
+      dom.bluePill.textContent = CONFIG.text.bluePill;
+      dom.redPill.textContent = CONFIG.text.redPill;
+      dom.flipCamera.textContent = CONFIG.text.flipCamera;
+    }
+
+    function setState(nextState, message) {
+      app.state = nextState;
+      app.transition = CONFIG.visuals.transitionFrames;
+      dom.reset.classList.toggle("hidden", nextState === STATES.INTRO);
+      dom.demoToggle.classList.toggle("hidden", nextState === STATES.INTRO);
+      dom.pillChoice.classList.toggle("visible", nextState === STATES.MATRIX_ROOM);
+      dom.flipCamera.classList.toggle("hidden", !(nextState === STATES.BLUE_WORLD || nextState === STATES.RED_WORLD));
+      dom.body.classList.toggle("selfie", nextState === STATES.SELFIE_BLUE || nextState === STATES.SELFIE_RED);
+      dom.glassesDrag.classList.remove("visible");
+
+      if (nextState === STATES.INTRO) {
+        dom.intro.hidden = false;
+      } else {
+        dom.intro.hidden = true;
+      }
+
+      setStatus(message || CONFIG.text[nextState.toLowerCase()] || CONFIG.text.intro);
+
+      if (nextState === STATES.MATRIX_ROOM) {
+        window.setTimeout(() => dom.bluePill.focus({ preventScroll: true }), 60);
+      }
+    }
+
+    function isSmallScreen() {
+      return Math.min(window.innerWidth, window.innerHeight) < 760;
+    }
+
+    function resizeCanvas() {
+      const rect = dom.canvas.getBoundingClientRect();
+      const maxPixels = isSmallScreen() ? CONFIG.performance.maxCanvasPixelsMobile : CONFIG.performance.maxCanvasPixelsDesktop;
+      const rawPixels = rect.width * rect.height * window.devicePixelRatio * window.devicePixelRatio;
+      const scale = rawPixels > maxPixels ? Math.sqrt(maxPixels / rawPixels) : 1;
+
+      app.dpr = Math.max(1, Math.min(window.devicePixelRatio * scale, 2));
+      app.width = Math.max(1, Math.floor(rect.width * app.dpr));
+      app.height = Math.max(1, Math.floor(rect.height * app.dpr));
+      dom.canvas.width = app.width;
+      dom.canvas.height = app.height;
+      ctx.setTransform(app.dpr, 0, 0, app.dpr, 0, 0);
+      seedScene();
+    }
+
+    function randomRange(min, max) {
+      return min + Math.random() * (max - min);
+    }
+
+    function seedScene() {
+      const w = dom.canvas.clientWidth || window.innerWidth;
+      const h = dom.canvas.clientHeight || window.innerHeight;
+
+      app.cracks = Array.from({ length: CONFIG.visuals.crackCount }, (_, i) => ({
+        x: randomRange(w * 0.14, w * 0.86),
+        y: randomRange(h * 0.34, h * 0.82),
+        size: randomRange(42, 94),
+        angle: randomRange(-0.9, 0.9),
+        open: i === 0 ? 0.22 : 0,
+        seed: Math.random() * 1000
+      }));
+
+      const columnCount = isSmallScreen() ? CONFIG.visuals.rainColumnsPhone : CONFIG.visuals.rainColumnsDesktop;
+      app.rain = Array.from({ length: columnCount }, (_, i) => ({
+        x: (i / columnCount) * w + randomRange(-8, 8),
+        y: randomRange(-h, h),
+        speed: randomRange(30, 115),
+        depth: randomRange(0.35, 1.25),
+        size: randomRange(12, 22)
+      }));
+
+      app.particles = Array.from({ length: 34 }, () => ({
+        x: randomRange(0, w),
+        y: randomRange(0, h),
+        r: randomRange(1, 5),
+        speed: randomRange(4, 22),
+        phase: randomRange(0, Math.PI * 2)
+      }));
+    }
+
+    async function startCamera(useFront = false) {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        startDemoMode(CONFIG.text.cameraUnavailable);
+        return;
+      }
+
+      setStatus(CONFIG.text.cameraStarting);
+      const previousStream = media.stream;
+
+      try {
+        const constraints = useFront ? CONFIG.camera.front : CONFIG.camera.rear;
+        const nextStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (previousStream && previousStream !== nextStream) {
+          previousStream.getTracks().forEach(track => track.stop());
+        }
+        media.stream = nextStream;
+        media.facing = useFront ? "user" : "environment";
+        media.demo = false;
+        dom.video.srcObject = media.stream;
+        await dom.video.play();
+
+        if (useFront) {
+          setState(app.selectedWorld === "red" ? STATES.SELFIE_RED : STATES.SELFIE_BLUE,
+            app.selectedWorld === "red" ? CONFIG.text.selfieRed : CONFIG.text.selfieBlue);
+          await initFaceTracking();
+        } else {
+          setState(STATES.CAMERA_ROOM, CONFIG.text.cameraRoom);
+          await initHandTracking();
+        }
+      } catch (err) {
+        console.warn("Camera failed", err);
+        if (useFront) {
+          media.stream = previousStream;
+          if (previousStream) {
+            dom.video.srcObject = previousStream;
+            await dom.video.play().catch(() => {});
+          }
+          setStatus(CONFIG.text.frontFail);
+        } else {
+          stopCamera();
+          startDemoMode(CONFIG.text.cameraUnavailable);
+        }
+      }
+    }
+
+    function stopCamera() {
+      if (media.stream) {
+        media.stream.getTracks().forEach(track => track.stop());
+      }
+      media.stream = null;
+      dom.video.srcObject = null;
+    }
+
+    function startDemoMode(message = CONFIG.text.cameraUnavailable) {
+      stopCamera();
+      media.demo = true;
+      media.facing = "environment";
+      setState(STATES.CAMERA_ROOM, `${message} ${CONFIG.text.cameraRoom}`);
+    }
+
+    async function loadVisionTasks() {
+      const vision = await import(CONFIG.cdn.tasksVision);
+      const fileset = await vision.FilesetResolver.forVisionTasks(CONFIG.cdn.wasmRoot);
+      return { vision, fileset };
+    }
+
+    async function initHandTracking() {
+      if (media.handReady || media.demo || app.reducedMotion) return;
+      try {
+        const { vision, fileset } = await loadVisionTasks();
+        media.handLandmarker = await vision.HandLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: CONFIG.cdn.handModel, delegate: "GPU" },
+          runningMode: "VIDEO",
+          numHands: 1
+        });
+        media.handReady = true;
+      } catch (err) {
+        console.warn("Hand tracking failed", err);
+        setStatus(`${CONFIG.text.cameraRoom} ${CONFIG.text.handFallback}`);
+      }
+    }
+
+    async function initFaceTracking() {
+      if (media.faceReady || media.demo || app.reducedMotion) {
+        showFallbackGlasses();
+        return;
+      }
+      try {
+        const { vision, fileset } = await loadVisionTasks();
+        media.faceLandmarker = await vision.FaceLandmarker.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: CONFIG.cdn.faceModel, delegate: "GPU" },
+          runningMode: "VIDEO",
+          numFaces: 1,
+          outputFaceBlendshapes: false,
+          outputFacialTransformationMatrixes: false
+        });
+        media.faceReady = true;
+      } catch (err) {
+        console.warn("Face tracking failed", err);
+        showFallbackGlasses();
+        setStatus(`${app.selectedWorld === "red" ? CONFIG.text.selfieRed : CONFIG.text.selfieBlue} ${CONFIG.text.faceFallback}`);
+      }
+    }
+
+    function showFallbackGlasses() {
+      if (app.state === STATES.SELFIE_BLUE || app.state === STATES.SELFIE_RED) {
+        dom.glassesDrag.classList.add("visible");
+      }
+    }
+
+    function triggerCrackReveal(x, y) {
+      if (![STATES.CAMERA_ROOM, STATES.CRACK_REVEAL].includes(app.state)) return;
+
+      let hit = false;
+      app.cracks.forEach(crack => {
+        const dist = Math.hypot(crack.x - x, crack.y - y);
+        if (dist < CONFIG.visuals.crackHitRadius + crack.size * 0.4) {
+          crack.open = Math.min(1, crack.open + 0.45);
+          hit = true;
+        }
+      });
+
+      if (!hit) {
+        const nearest = app.cracks.reduce((best, crack) => {
+          const dist = Math.hypot(crack.x - x, crack.y - y);
+          return dist < best.dist ? { crack, dist } : best;
+        }, { crack: app.cracks[0], dist: Infinity });
+        nearest.crack.open = Math.min(1, nearest.crack.open + 0.32);
+      }
+
+      setState(STATES.CRACK_REVEAL, CONFIG.text.crackReveal);
+      if (app.cracks.some(crack => crack.open >= 0.85)) {
+        window.setTimeout(() => setState(STATES.MATRIX_ROOM, CONFIG.text.matrixRoom), app.reducedMotion ? 180 : 700);
+      }
+    }
+
+    function chooseWorld(world) {
+      app.selectedWorld = world;
+      if (world === "blue") {
+        setState(STATES.BLUE_WORLD, CONFIG.text.blueWorld);
+      } else {
+        setState(STATES.RED_WORLD, CONFIG.text.redWorld);
+      }
+    }
+
+    async function flipCamera() {
+      if (!app.selectedWorld) return;
+      await startCamera(true);
+      if (media.demo || !media.stream) {
+        setState(app.selectedWorld === "red" ? STATES.SELFIE_RED : STATES.SELFIE_BLUE,
+          app.selectedWorld === "red" ? CONFIG.text.selfieRed : CONFIG.text.selfieBlue);
+        showFallbackGlasses();
+      }
+    }
+
+    function resetExperience() {
+      stopCamera();
+      media.demo = false;
+      media.facing = "environment";
+      media.lastFaceBox = null;
+      app.selectedWorld = null;
+      seedScene();
+      setState(STATES.INTRO, CONFIG.text.intro);
+    }
+
+    function drawDemoCamera(t, w, h) {
+      const grd = ctx.createLinearGradient(0, 0, w, h);
+      grd.addColorStop(0, "#17211f");
+      grd.addColorStop(0.45, "#29322e");
+      grd.addColorStop(1, "#070b09");
+      ctx.fillStyle = grd;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.strokeStyle = "rgba(245,255,249,0.13)";
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 9; i++) {
+        const y = h * 0.22 + i * h * 0.075 + Math.sin(t * 0.001 + i) * 4;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y + i * 7);
+        ctx.stroke();
+      }
+
+      ctx.fillStyle = "rgba(255,255,255,0.05)";
+      ctx.fillRect(w * 0.12, h * 0.16, w * 0.3, h * 0.23);
+      ctx.fillRect(w * 0.58, h * 0.18, w * 0.24, h * 0.18);
+      ctx.fillStyle = "rgba(0,0,0,0.24)";
+      ctx.fillRect(0, h * 0.72, w, h * 0.28);
+    }
+
+    function drawCracks(t, w, h) {
+      app.cracks.forEach(crack => {
+        ctx.save();
+        ctx.translate(crack.x, crack.y);
+        ctx.rotate(crack.angle);
+        const pulse = 0.7 + Math.sin(t * 0.004 + crack.seed) * 0.3;
+
+        if (crack.open > 0.05) {
+          ctx.save();
+          ctx.globalAlpha = crack.open;
+          ctx.fillStyle = "rgba(0, 24, 7, 0.72)";
+          ctx.beginPath();
+          ctx.ellipse(0, 0, crack.size * 0.66, crack.size * 0.32, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.clip();
+          drawBinaryPatch(t, crack.size);
+          ctx.restore();
+        }
+
+        ctx.strokeStyle = `rgba(72,255,126,${0.42 + pulse * 0.42})`;
+        ctx.lineWidth = 2.5;
+        ctx.shadowColor = "#35ff75";
+        ctx.shadowBlur = 14 + crack.open * 18;
+        for (let branch = 0; branch < 6; branch++) {
+          ctx.beginPath();
+          ctx.moveTo(0, 0);
+          let x = 0;
+          let y = 0;
+          const steps = 4;
+          for (let step = 1; step <= steps; step++) {
+            x += Math.cos(branch * 1.04 + step * 0.35) * crack.size * randomStable(crack.seed, branch, step) * 0.16;
+            y += (branch - 2.5) * crack.size * 0.025 + step * crack.size * 0.12;
+            ctx.lineTo(x, y);
+          }
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      if (app.state === STATES.CAMERA_ROOM || app.state === STATES.CRACK_REVEAL) {
+        ctx.fillStyle = "rgba(5, 8, 7, 0.22)";
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+
+    function randomStable(seed, a, b) {
+      const x = Math.sin(seed + a * 13.13 + b * 17.17) * 43758.5453;
+      return x - Math.floor(x);
+    }
+
+    function drawBinaryPatch(t, size) {
+      ctx.fillStyle = "#36ff78";
+      ctx.font = "700 16px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.textAlign = "center";
+      for (let y = -size * 0.55; y < size * 0.6; y += 17) {
+        for (let x = -size * 0.72; x < size * 0.72; x += 14) {
+          const glyph = ((x + y + Math.floor(t * 0.012)) % 2 === 0) ? "0" : "1";
+          ctx.globalAlpha = 0.45 + randomStable(size, x, y) * 0.5;
+          ctx.fillText(glyph, x, y);
+        }
+      }
+      ctx.globalAlpha = 1;
+    }
+
+    function drawMatrix(t, w, h) {
+      ctx.fillStyle = "rgba(0, 0, 0, 0.72)";
+      ctx.fillRect(0, 0, w, h);
+
+      app.rain.forEach(col => {
+        col.y += (app.reducedMotion ? 0.18 : 1) * col.speed / 60;
+        if (col.y > h + 80) col.y = -randomRange(80, h * 0.7);
+        const perspectiveX = (col.x - w / 2) * col.depth + w / 2;
+        ctx.font = `${col.size * col.depth}px ui-monospace, SFMono-Regular, Menlo, monospace`;
+        ctx.fillStyle = `rgba(53,255,117,${0.23 + Math.min(col.depth, 1) * 0.48})`;
+        for (let j = 0; j < 18; j++) {
+          const y = col.y - j * col.size * 1.2;
+          const glyph = CONFIG.visuals.binaryGlyphs[(j + Math.floor(t * 0.01 + col.x)) % 2];
+          ctx.fillText(glyph, perspectiveX + Math.sin(y * 0.02) * 12 * col.depth, y);
+        }
+      });
+
+      drawPerspectiveGrid(w, h, "#24ff6a");
+      drawScanlines(t, w, h, "rgba(53,255,117,0.08)");
+      drawGlitch(t, w, h, "rgba(53,255,117,0.18)");
+    }
+
+    function drawPerspectiveGrid(w, h, color) {
+      ctx.save();
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = 0.18;
+      ctx.lineWidth = 1;
+      const cx = w / 2;
+      const horizon = h * 0.42;
+      for (let i = -7; i <= 7; i++) {
+        ctx.beginPath();
+        ctx.moveTo(cx, horizon);
+        ctx.lineTo(cx + i * w * 0.18, h);
+        ctx.stroke();
+      }
+      for (let y = horizon; y < h; y += Math.max(16, (y - horizon) * 0.16 + 18)) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawBlueWorld(t, w, h) {
+      const sky = ctx.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, "rgba(64, 194, 255, 0.55)");
+      sky.addColorStop(0.55, "rgba(255, 225, 116, 0.24)");
+      sky.addColorStop(1, "rgba(26, 189, 155, 0.42)");
+      ctx.fillStyle = sky;
+      ctx.fillRect(0, 0, w, h);
+
+      ctx.fillStyle = "rgba(255,244,143,0.82)";
+      ctx.beginPath();
+      ctx.arc(w * 0.82, h * 0.16, Math.min(w, h) * 0.09, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = "rgba(255,255,255,0.55)";
+      ctx.lineWidth = 3;
+      for (let i = 0; i < 6; i++) {
+        const y = h * (0.62 + i * 0.045);
+        ctx.beginPath();
+        for (let x = -20; x <= w + 20; x += 18) {
+          const wave = Math.sin(x * 0.025 + t * 0.002 + i) * 8;
+          if (x === -20) ctx.moveTo(x, y + wave);
+          else ctx.lineTo(x, y + wave);
+        }
+        ctx.stroke();
+      }
+
+      app.particles.forEach(p => {
+        const bob = Math.sin(t * 0.002 + p.phase) * 10;
+        ctx.fillStyle = `rgba(255,255,255,${0.18 + p.r * 0.07})`;
+        ctx.beginPath();
+        ctx.arc(p.x, (p.y + bob) % h, p.r, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    }
+
+    function drawRedWorld(t, w, h) {
+      ctx.fillStyle = "rgba(59, 25, 8, 0.62)";
+      ctx.fillRect(0, 0, w, h);
+      ctx.fillStyle = "rgba(255, 158, 61, 0.16)";
+      ctx.fillRect(0, 0, w, h);
+
+      drawPipes(w, h);
+      for (let i = 0; i < 6; i++) {
+        drawGear(w * (0.12 + i * 0.16), h * (i % 2 ? 0.24 : 0.77), 28 + i * 5, t * (i % 2 ? -0.0007 : 0.0009), i);
+      }
+      drawSteam(t, w, h);
+      ctx.strokeStyle = "rgba(255,189,87,0.55)";
+      ctx.lineWidth = 8;
+      ctx.strokeRect(8, 8, w - 16, h - 16);
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "rgba(20,8,3,0.8)";
+      ctx.strokeRect(22, 22, w - 44, h - 44);
+    }
+
+    function drawPipes(w, h) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(185, 116, 43, 0.74)";
+      ctx.lineWidth = 16;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(w * 0.08, h * 0.18);
+      ctx.lineTo(w * 0.92, h * 0.18);
+      ctx.moveTo(w * 0.16, h * 0.18);
+      ctx.lineTo(w * 0.16, h * 0.68);
+      ctx.moveTo(w * 0.84, h * 0.18);
+      ctx.lineTo(w * 0.84, h * 0.82);
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(255, 211, 137, 0.42)";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function drawGear(x, y, r, rot, index) {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(rot + index);
+      ctx.fillStyle = "rgba(150, 91, 33, 0.72)";
+      ctx.strokeStyle = "rgba(255, 207, 126, 0.70)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      for (let i = 0; i < 18; i++) {
+        const a = (Math.PI * 2 * i) / 18;
+        const rr = i % 2 ? r * 0.78 : r;
+        const px = Math.cos(a) * rr;
+        const py = Math.sin(a) * rr;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.beginPath();
+      ctx.arc(0, 0, r * 0.32, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      ctx.globalCompositeOperation = "source-over";
+    }
+
+    function drawSteam(t, w, h) {
+      ctx.save();
+      ctx.strokeStyle = "rgba(255, 236, 205, 0.24)";
+      ctx.lineWidth = 8;
+      ctx.lineCap = "round";
+      for (let i = 0; i < 7; i++) {
+        const baseX = w * (0.18 + i * 0.11);
+        const baseY = h * 0.92;
+        ctx.beginPath();
+        for (let j = 0; j < 8; j++) {
+          const y = baseY - j * 24;
+          const x = baseX + Math.sin(t * 0.0015 + i + j * 0.6) * 18;
+          if (j === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    function drawSelfieOverlay(t, w, h) {
+      if (app.state === STATES.SELFIE_BLUE) drawBlueWorld(t, w, h);
+      if (app.state === STATES.SELFIE_RED) drawRedWorld(t, w, h);
+
+      if (media.faceReady && media.lastFaceBox) {
+        drawTrackedGlasses(media.lastFaceBox, app.state === STATES.SELFIE_BLUE);
+      } else {
+        showFallbackGlasses();
+      }
+    }
+
+    function drawTrackedGlasses(box, playful) {
+      const x = box.x;
+      const y = box.y + box.h * 0.33;
+      const width = box.w * 0.76;
+      const height = width * 0.24;
+      ctx.save();
+      ctx.translate(x + box.w / 2, y);
+      ctx.fillStyle = playful ? "rgba(13, 23, 45, 0.88)" : "rgba(2, 2, 2, 0.92)";
+      ctx.strokeStyle = playful ? "#ffea5e" : "#101010";
+      ctx.lineWidth = Math.max(4, width * 0.045);
+      ctx.beginPath();
+      ctx.roundRect(-width * 0.52, -height / 2, width * 0.42, height, height * 0.45);
+      ctx.roundRect(width * 0.10, -height / 2, width * 0.42, height, height * 0.45);
+      ctx.fill();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(-width * 0.1, 0);
+      ctx.lineTo(width * 0.1, 0);
+      ctx.stroke();
+      if (playful) {
+        ctx.fillStyle = "#ff56b3";
+        ctx.fillRect(-width * 0.48, -height * 0.42, width * 0.14, height * 0.18);
+        ctx.fillStyle = "#38dfff";
+        ctx.fillRect(width * 0.34, -height * 0.42, width * 0.14, height * 0.18);
+      }
+      ctx.restore();
+    }
+
+    function drawScanlines(t, w, h, color) {
+      ctx.save();
+      ctx.fillStyle = color;
+      const offset = app.reducedMotion ? 0 : (t * 0.03) % 8;
+      for (let y = -8 + offset; y < h; y += 8) {
+        ctx.fillRect(0, y, w, 1);
+      }
+      ctx.restore();
+    }
+
+    function drawGlitch(t, w, h, color) {
+      if (app.reducedMotion || Math.floor(t / 240) % 5 !== 0) return;
+      ctx.save();
+      ctx.fillStyle = color;
+      for (let i = 0; i < 4; i++) {
+        ctx.fillRect(randomRange(0, w * 0.8), randomRange(0, h), randomRange(24, w * 0.24), randomRange(2, 10));
+      }
+      ctx.restore();
+    }
+
+    function drawTransition(w, h) {
+      if (app.transition <= 0) return;
+      const alpha = app.transition / CONFIG.visuals.transitionFrames;
+      ctx.fillStyle = `rgba(53,255,117,${alpha * 0.28})`;
+      ctx.fillRect(0, 0, w, h);
+      app.transition -= 1;
+    }
+
+    function processHandTracking(now) {
+      if (!media.handReady || !media.handLandmarker || media.demo || app.state !== STATES.CAMERA_ROOM) return;
+      if (now - media.lastHandCheck < CONFIG.performance.handFrameIntervalMs) return;
+      media.lastHandCheck = now;
+
+      try {
+        const result = media.handLandmarker.detectForVideo(dom.video, now);
+        const hand = result.landmarks?.[0];
+        if (!hand) return;
+        const thumb = hand[4];
+        const index = hand[8];
+        const dist = Math.hypot(thumb.x - index.x, thumb.y - index.y);
+        if (dist < 0.052 && now - media.lastPinch > 900) {
+          media.lastPinch = now;
+          triggerCrackReveal((1 - index.x) * dom.canvas.clientWidth, index.y * dom.canvas.clientHeight);
+        }
+      } catch (err) {
+        media.handReady = false;
+        setStatus(`${CONFIG.text.cameraRoom} ${CONFIG.text.handFallback}`);
+      }
+    }
+
+    function processFaceTracking(now) {
+      if (!media.faceReady || !media.faceLandmarker || media.demo || ![STATES.SELFIE_BLUE, STATES.SELFIE_RED].includes(app.state)) return;
+      if (now - media.lastFaceCheck < CONFIG.performance.faceFrameIntervalMs) return;
+      media.lastFaceCheck = now;
+
+      try {
+        const result = media.faceLandmarker.detectForVideo(dom.video, now);
+        const face = result.faceLandmarks?.[0];
+        if (!face) {
+          media.lastFaceBox = null;
+          showFallbackGlasses();
+          return;
+        }
+
+        const xs = face.map(p => p.x);
+        const ys = face.map(p => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        const cw = dom.canvas.clientWidth;
+        const ch = dom.canvas.clientHeight;
+
+        media.lastFaceBox = {
+          x: (1 - maxX) * cw,
+          y: minY * ch,
+          w: (maxX - minX) * cw,
+          h: (maxY - minY) * ch
+        };
+        dom.glassesDrag.classList.remove("visible");
+      } catch (err) {
+        media.faceReady = false;
+        media.lastFaceBox = null;
+        showFallbackGlasses();
+      }
+    }
+
+    function animate(now) {
+      if (!app.running) {
+        requestAnimationFrame(animate);
+        return;
+      }
+
+      app.frame++;
+      if (app.reducedMotion && app.frame % CONFIG.visuals.reducedMotionFrameSkip !== 0) {
+        requestAnimationFrame(animate);
+        return;
+      }
+
+      const w = dom.canvas.clientWidth;
+      const h = dom.canvas.clientHeight;
+      ctx.clearRect(0, 0, w, h);
+
+      if (media.demo || app.state === STATES.INTRO) {
+        drawDemoCamera(now, w, h);
+      }
+
+      if (app.state === STATES.CAMERA_ROOM || app.state === STATES.CRACK_REVEAL) {
+        drawCracks(now, w, h);
+        processHandTracking(now);
+      } else if (app.state === STATES.MATRIX_ROOM) {
+        drawMatrix(now, w, h);
+      } else if (app.state === STATES.BLUE_WORLD) {
+        drawBlueWorld(now, w, h);
+      } else if (app.state === STATES.RED_WORLD) {
+        drawRedWorld(now, w, h);
+      } else if (app.state === STATES.SELFIE_BLUE || app.state === STATES.SELFIE_RED) {
+        processFaceTracking(now);
+        drawSelfieOverlay(now, w, h);
+      }
+
+      drawTransition(w, h);
+      requestAnimationFrame(animate);
+    }
+
+    function eventPoint(event) {
+      const rect = dom.canvas.getBoundingClientRect();
+      const touch = event.touches?.[0] || event.changedTouches?.[0] || event;
+      return {
+        x: touch.clientX - rect.left,
+        y: touch.clientY - rect.top
+      };
+    }
+
+    function bindEvents() {
+      dom.startCamera.addEventListener("click", () => startCamera(false));
+      dom.startDemo.addEventListener("click", () => startDemoMode("Demo mode is running."));
+      dom.demoToggle.addEventListener("click", () => startDemoMode("Demo mode is running."));
+      dom.reset.addEventListener("click", resetExperience);
+      dom.flipCamera.addEventListener("click", flipCamera);
+      dom.bluePill.addEventListener("click", () => chooseWorld("blue"));
+      dom.redPill.addEventListener("click", () => chooseWorld("red"));
+
+      dom.canvas.addEventListener("click", event => {
+        const point = eventPoint(event);
+        triggerCrackReveal(point.x, point.y);
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.target.closest?.("button")) return;
+        if ((event.key === "Enter" || event.key === " ") && [STATES.CAMERA_ROOM, STATES.CRACK_REVEAL].includes(app.state)) {
+          event.preventDefault();
+          triggerCrackReveal(dom.canvas.clientWidth / 2, dom.canvas.clientHeight * 0.58);
+        }
+      });
+
+      window.addEventListener("resize", resizeCanvas);
+      document.addEventListener("visibilitychange", () => {
+        app.running = !document.hidden;
+        if (!document.hidden) app.lastTime = performance.now();
+      });
+
+      setupDraggableGlasses();
+    }
+
+    function setupDraggableGlasses() {
+      let drag = null;
+      let scaleStart = 1;
+      let widthStart = 0;
+
+      const getTransform = () => {
+        const rect = dom.glassesDrag.getBoundingClientRect();
+        return { left: rect.left, top: rect.top, width: rect.width };
+      };
+
+      dom.glassesDrag.addEventListener("pointerdown", event => {
+        dom.glassesDrag.setPointerCapture(event.pointerId);
+        const rect = getTransform();
+        drag = {
+          id: event.pointerId,
+          startX: event.clientX,
+          startY: event.clientY,
+          left: rect.left + rect.width / 2,
+          top: rect.top + rect.width / 6
+        };
+      });
+
+      dom.glassesDrag.addEventListener("pointermove", event => {
+        if (!drag || drag.id !== event.pointerId) return;
+        const x = drag.left + event.clientX - drag.startX;
+        const y = drag.top + event.clientY - drag.startY;
+        dom.glassesDrag.style.left = `${x}px`;
+        dom.glassesDrag.style.top = `${y}px`;
+      });
+
+      dom.glassesDrag.addEventListener("pointerup", () => { drag = null; });
+      dom.glassesDrag.addEventListener("pointercancel", () => { drag = null; });
+
+      dom.glassesDrag.addEventListener("wheel", event => {
+        event.preventDefault();
+        const current = dom.glassesDrag.getBoundingClientRect().width;
+        const next = Math.max(120, Math.min(380, current + (event.deltaY > 0 ? -16 : 16)));
+        dom.glassesDrag.style.width = `${next}px`;
+      }, { passive: false });
+
+      dom.glassesDrag.addEventListener("keydown", event => {
+        const step = event.shiftKey ? 18 : 8;
+        const rect = dom.glassesDrag.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        if (event.key === "ArrowLeft") dom.glassesDrag.style.left = `${x - step}px`;
+        else if (event.key === "ArrowRight") dom.glassesDrag.style.left = `${x + step}px`;
+        else if (event.key === "ArrowUp") dom.glassesDrag.style.top = `${y - step}px`;
+        else if (event.key === "ArrowDown") dom.glassesDrag.style.top = `${y + step}px`;
+        else if (event.key === "+" || event.key === "=") dom.glassesDrag.style.width = `${Math.min(380, rect.width + 14)}px`;
+        else if (event.key === "-" || event.key === "_") dom.glassesDrag.style.width = `${Math.max(120, rect.width - 14)}px`;
+        else return;
+        event.preventDefault();
+      });
+    }
+
+    if (!CanvasRenderingContext2D.prototype.roundRect) {
+      CanvasRenderingContext2D.prototype.roundRect = function roundRect(x, y, w, h, r) {
+        const radius = Math.min(r, w / 2, h / 2);
+        this.moveTo(x + radius, y);
+        this.arcTo(x + w, y, x + w, y + h, radius);
+        this.arcTo(x + w, y + h, x, y + h, radius);
+        this.arcTo(x, y + h, x, y, radius);
+        this.arcTo(x, y, x + w, y, radius);
+        return this;
+      };
+    }
+
+    applyConfigText();
+    resizeCanvas();
+    bindEvents();
+    setState(STATES.INTRO, CONFIG.text.intro);
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>
