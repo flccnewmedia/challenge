@@ -56,10 +56,10 @@ This project is static and does not require a paid API. It does not bundle 8th W
 Current behavior:
 
 - Camera feed: real browser `getUserMedia`, rear and front camera where supported.
-- Room cracks: procedural screen-space AR overlay with device-orientation parallax fallback.
-- Approach/proximity: simulated through tap, focus button, hold-style interaction, and crack enlargement.
+- Room cracks: procedural fixed screen-space AR overlay. The fallback avoids drifting parallax so cracks feel locked to the camera view; true room locking needs world anchors from 8th Wall, WebXR, or another SLAM tracker.
+- Approach/proximity: simulated through tap/focus. Once focused, the selected crack opens over a few seconds and automatically triggers the Matrix room when it reaches the configured threshold.
 - Hand pinch: optional MediaPipe Tasks Vision loaded in-browser; tap and keyboard fallback always work.
-- Matrix room: WebGL particles plus canvas binary rain, scanlines, glow, and parallax-style depth layers.
+- Matrix room: WebGL particles plus canvas binary rain, scanlines, glow, and parallax-style depth layers. Mapping binary to the exact shape of furniture/walls requires a depth mesh or segmentation pass; this static version provides the visual fallback.
 - Pill choice: real HTML buttons plus Three.js floating pill visuals.
 - Face effects: optional MediaPipe face landmarks. If tracking fails, a draggable fallback is shown and can be resized with mouse wheel or `+`/`-` keys.
 - Demo mode: if camera permission is denied, the app runs with simulated room motion and all interactions still available.

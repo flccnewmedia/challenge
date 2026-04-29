@@ -193,6 +193,9 @@ function loop(now) {
     fx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     drawDemoCamera(now);
     cracks.draw(now, state.value === STATES.MATRIX_ROOM || state.value === STATES.PILL_CHOICE);
+    if (state.value === STATES.CRACK_FOCUS && cracks.getFocusedOpenAmount() >= CONFIG.cracks.openThreshold) {
+      triggerMatrix();
+    }
     rain.draw(fx, window.innerWidth, window.innerHeight);
     drawScanlines(now, dt);
   }

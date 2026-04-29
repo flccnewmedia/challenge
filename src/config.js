@@ -39,8 +39,9 @@ export const CONFIG = {
   cracks: {
     focusGrowth: 1.55,
     tapRadius: 110,
-    glowPulse: 0.25,
-    binarySpeed: 34
+    binarySpeed: 34,
+    openRate: 0.18,
+    openThreshold: 0.92
   },
   pills: {
     redLabel: "Red Pill",
