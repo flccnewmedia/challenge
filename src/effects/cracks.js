@@ -10,6 +10,9 @@ export class CrackSystem {
     this.cracks = [];
     this.focused = -1;
     this.enabled = false;
+    this.anchored = false;
+    this.orientation = { alpha: 0, beta: 0, gamma: 0 };
+    this.anchorOrientation = { alpha: 0, beta: 0, gamma: 0 };
     this.binaryOffset = 0;
     this.lastTime = performance.now();
     this.resize();
@@ -17,6 +20,13 @@ export class CrackSystem {
     window.addEventListener("resize", () => {
       this.resize();
       this.seed();
+    });
+    window.addEventListener("deviceorientation", (event) => {
+      this.orientation = {
+        alpha: event.alpha || 0,
+        beta: event.beta || 0,
+        gamma: event.gamma || 0
+      };
     });
   }
 
@@ -59,6 +69,21 @@ export class CrackSystem {
     if (!enabled) this.clear();
   }
 
+  lockToCurrentView() {
+    this.anchored = true;
+    this.anchorOrientation = { ...this.orientation };
+    this.focused = -1;
+    this.cracks.forEach((crack) => {
+      crack.open = 0;
+    });
+    this.setEnabled(true);
+  }
+
+  unlock() {
+    this.anchored = false;
+    this.focused = -1;
+  }
+
   focusNearest(x = window.innerWidth / 2, y = window.innerHeight / 2) {
     let best = 0;
     let bestDist = Infinity;
@@ -85,11 +110,29 @@ export class CrackSystem {
 
   getCrackPosition(crack) {
     const minSide = Math.min(window.innerWidth, window.innerHeight);
+    const offset = this.getAnchorOffset();
     return {
-      x: crack.xPct * window.innerWidth,
-      y: crack.yPct * window.innerHeight,
+      x: crack.xPct * window.innerWidth + offset.x,
+      y: crack.yPct * window.innerHeight + offset.y,
       radius: crack.radiusPct * minSide
     };
+  }
+
+  getAnchorOffset() {
+    if (!this.anchored) return { x: 0, y: 0 };
+    const dx = this.shortestAngle(this.orientation.gamma - this.anchorOrientation.gamma);
+    const dy = this.shortestAngle(this.orientation.beta - this.anchorOrientation.beta);
+    return {
+      x: clamp(-dx * CONFIG.cracks.anchorPixelsPerDegree, -window.innerWidth * 0.55, window.innerWidth * 0.55),
+      y: clamp(-dy * CONFIG.cracks.anchorPixelsPerDegree, -window.innerHeight * 0.45, window.innerHeight * 0.45)
+    };
+  }
+
+  shortestAngle(delta) {
+    let result = delta;
+    while (result > 180) result -= 360;
+    while (result < -180) result += 360;
+    return result;
   }
 
   getFocusedOpenAmount() {

@@ -2,6 +2,8 @@ export const CONFIG = {
   text: {
     title: "Reality Glitch",
     introCaption: "Press Start Camera to begin.",
+    scanCaption: "Scan slowly across a wall or floor, then press Lock Cracks.",
+    lockedCaption: "Cracks locked to this view. Move slowly and tap a crack to approach it.",
     rearCaption: "Rear camera active. Move slowly and tap a crack to inspect it.",
     focusCaption: "Crack focus increased. Pinch, point, or tap Trigger Glitch.",
     matrixCaption: "The room is converting into Matrix code.",
@@ -41,7 +43,8 @@ export const CONFIG = {
     tapRadius: 110,
     binarySpeed: 34,
     openRate: 0.18,
-    openThreshold: 0.92
+    openThreshold: 0.92,
+    anchorPixelsPerDegree: 14
   },
   pills: {
     redLabel: "Red Pill",

@@ -28,6 +28,7 @@ let running = true;
 let last = performance.now();
 let trackingLoaded = false;
 let faceLoaded = false;
+let scanLocked = false;
 
 function resizeFx() {
   cracks.resize();
@@ -38,6 +39,7 @@ resizeFx();
 
 ui.on({
   start: startExperience,
+  lockScan: lockRoomCracks,
   focus: () => focusCrack(window.innerWidth / 2, window.innerHeight / 2),
   transform: triggerMatrix,
   flip: flipToSelfie,
@@ -48,14 +50,14 @@ ui.on({
 
 state.addEventListener("statechange", ({ detail }) => {
   document.body.className = detail.state.toLowerCase().replace("_", "-");
-  ui.render(state.value, state.choice, state.demoMode);
+  ui.render(state.value, state.choice, state.demoMode, scanLocked);
   applyStateEffects(detail.state);
 });
 
-state.addEventListener("choicechange", () => ui.render(state.value, state.choice, state.demoMode));
+state.addEventListener("choicechange", () => ui.render(state.value, state.choice, state.demoMode, scanLocked));
 
 window.addEventListener("pointerdown", (event) => {
-  if ([STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state.value)) {
+  if (scanLocked && [STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state.value)) {
     const hit = cracks.hitTest(event.clientX, event.clientY);
     if (hit) focusCrack(event.clientX, event.clientY);
   }
@@ -63,7 +65,7 @@ window.addEventListener("pointerdown", (event) => {
 
 hands.addEventListener("hand", ({ detail }) => {
   ui.setReticle({ x: detail.x, y: detail.y }, detail.pinch);
-  if (detail.pinch && [STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state.value)) {
+  if (scanLocked && detail.pinch && [STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state.value)) {
     const hit = cracks.hitTest(detail.x, detail.y);
     if (hit) triggerMatrix();
   }
@@ -88,9 +90,33 @@ async function startExperience() {
     console.info("Camera permission failed, entering demo mode.", error);
     state.setDemoMode(true);
   }
-  cracks.setEnabled(true);
+  scanLocked = state.demoMode;
+  if (scanLocked) {
+    cracks.lockToCurrentView();
+  } else {
+    cracks.setEnabled(false);
+  }
   state.set(STATES.REAR_ROOM);
+  ui.render(state.value, state.choice, state.demoMode, scanLocked);
   lazyLoadTracking();
+}
+
+async function lockRoomCracks() {
+  await requestOrientationAccess();
+  scanLocked = true;
+  cracks.seed();
+  cracks.lockToCurrentView();
+  ui.render(state.value, state.choice, state.demoMode, scanLocked);
+}
+
+async function requestOrientationAccess() {
+  const orientation = window.DeviceOrientationEvent;
+  if (!orientation || typeof orientation.requestPermission !== "function") return;
+  try {
+    await orientation.requestPermission();
+  } catch (error) {
+    console.info("Device orientation permission unavailable; using fixed overlay fallback.", error);
+  }
 }
 
 async function lazyLoadTracking() {
@@ -152,6 +178,8 @@ function reset() {
   world.showPills(false);
   rain.setActive(false);
   cracks.setEnabled(false);
+  cracks.unlock();
+  scanLocked = false;
   state.setChoice(null);
   state.setDemoMode(false);
   state.set(STATES.INTRO);
@@ -160,7 +188,7 @@ function reset() {
 function applyStateEffects(next) {
   world.showPills(next === STATES.PILL_CHOICE);
   document.documentElement.dataset.world = state.choice || "matrix";
-  if (next === STATES.REAR_ROOM) buildMatrixRoom(world);
+  if (next === STATES.REAR_ROOM) world.clearWorld();
   if (next === STATES.INTRO) {
     fx.clearRect(0, 0, window.innerWidth, window.innerHeight);
     ui.setReticle(null);
@@ -212,5 +240,5 @@ function drawScanlines(time) {
   fx.restore();
 }
 
-ui.render(state.value, state.choice, state.demoMode);
+ui.render(state.value, state.choice, state.demoMode, scanLocked);
 requestAnimationFrame(loop);

@@ -8,11 +8,13 @@ export class UIController {
       intro: document.getElementById("introPanel"),
       hud: document.getElementById("hud"),
       pillPanel: document.getElementById("pillPanel"),
+      scanPanel: document.getElementById("scanPanel"),
       caption: document.getElementById("caption"),
       ariaLive: document.getElementById("ariaLive"),
       reticle: document.getElementById("reticle"),
       fallbackSunglasses: document.getElementById("fallbackSunglasses"),
       start: document.getElementById("startButton"),
+      lockScan: document.getElementById("lockScanButton"),
       focus: document.getElementById("focusButton"),
       transform: document.getElementById("transformButton"),
       flip: document.getElementById("flipButton"),
@@ -27,6 +29,7 @@ export class UIController {
 
   on(actions) {
     this.nodes.start.addEventListener("click", actions.start);
+    this.nodes.lockScan.addEventListener("click", actions.lockScan);
     this.nodes.focus.addEventListener("click", actions.focus);
     this.nodes.transform.addEventListener("click", actions.transform);
     this.nodes.flip.addEventListener("click", actions.flip);
@@ -41,20 +44,22 @@ export class UIController {
     });
   }
 
-  render(state, choice, demoMode = false) {
+  render(state, choice, demoMode = false, scanLocked = false) {
     this.nodes.app.dataset.state = state;
     this.nodes.app.dataset.choice = choice || "";
     this.nodes.app.dataset.demo = String(demoMode);
+    this.nodes.app.dataset.scanLocked = String(scanLocked);
     this.nodes.intro.hidden = state !== STATES.INTRO;
     this.nodes.pillPanel.hidden = state !== STATES.PILL_CHOICE;
+    this.nodes.scanPanel.hidden = !(state === STATES.REAR_ROOM && !scanLocked);
     this.nodes.flip.hidden = !(state === STATES.BLUE_WORLD || state === STATES.RED_WORLD);
-    this.nodes.focus.hidden = ![STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state);
-    this.nodes.transform.hidden = ![STATES.REAR_ROOM, STATES.CRACK_FOCUS, STATES.MATRIX_ROOM].includes(state);
+    this.nodes.focus.hidden = !([STATES.REAR_ROOM, STATES.CRACK_FOCUS].includes(state) && scanLocked);
+    this.nodes.transform.hidden = !([STATES.REAR_ROOM, STATES.CRACK_FOCUS, STATES.MATRIX_ROOM].includes(state) && (scanLocked || state === STATES.MATRIX_ROOM));
     this.nodes.fallbackSunglasses.hidden = !(state === STATES.SELFIE_BLUE || state === STATES.SELFIE_RED);
 
     const captions = {
       [STATES.INTRO]: CONFIG.text.introCaption,
-      [STATES.REAR_ROOM]: demoMode ? CONFIG.text.cameraDenied : CONFIG.text.rearCaption,
+      [STATES.REAR_ROOM]: demoMode ? CONFIG.text.cameraDenied : scanLocked ? CONFIG.text.lockedCaption : CONFIG.text.scanCaption,
       [STATES.CRACK_FOCUS]: CONFIG.text.focusCaption,
       [STATES.MATRIX_ROOM]: CONFIG.text.matrixCaption,
       [STATES.PILL_CHOICE]: CONFIG.text.pillCaption,

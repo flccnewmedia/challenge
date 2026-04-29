@@ -56,7 +56,8 @@ This project is static and does not require a paid API. It does not bundle 8th W
 Current behavior:
 
 - Camera feed: real browser `getUserMedia`, rear and front camera where supported.
-- Room cracks: procedural fixed screen-space AR overlay. The fallback avoids drifting parallax so cracks feel locked to the camera view; true room locking needs world anchors from 8th Wall, WebXR, or another SLAM tracker.
+- Scan step: after camera permission, the user pans across a wall or floor and presses **Lock Cracks**. This records the device orientation at that moment.
+- Room cracks: procedural AR overlay with orientation-compensated anchoring. The cracks move against phone rotation after locking, which feels more attached to the viewed wall than a fixed HUD overlay. True room locking during walking/translation still needs world anchors from 8th Wall, WebXR, or another SLAM tracker.
 - Approach/proximity: simulated through tap/focus. Once focused, the selected crack opens over a few seconds and automatically triggers the Matrix room when it reaches the configured threshold.
 - Hand pinch: optional MediaPipe Tasks Vision loaded in-browser; tap and keyboard fallback always work.
 - Matrix room: WebGL particles plus canvas binary rain, scanlines, glow, and parallax-style depth layers. Mapping binary to the exact shape of furniture/walls requires a depth mesh or segmentation pass; this static version provides the visual fallback.
